@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - release/1.0.0
+#      - feature/*
+  pull_request:
+    branches:
+      - bugfix/*
+      - feature/*
+      - hotfix/*
+      - release/*
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build and Test
+      shell: bash
+      run: |
+        echo "Build and Test as asdfsdf asdf asdfs sadfsd asdfsdff bbccccdddd asdfd asdf yyyyy asd asdf   asdfdf "
+        echo "::set-env name=BUILD_STATE::successful"
+    - name: Failed Build
+      if: failure()
+      run: echo "::set-env name=BUILD_STATE::failed"
+    - name: Parse Jira Keys from Commit
+      id: jira_keys
+      if: always()
+      uses: HighwayThree/jira-extract-issue-keys@master
+      with:
+        is-pull-request: ${{ github.event_name == 'pull_request' }}
+        parse-all-commits: ${{ github.event_name == 'push' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Push Build Info to Jira
+      if: steps.jira_keys.outputs.jira-keys != ''
+      id: push_build_info_to_jira
+      uses: HighwayThree/jira-upload-build-info@master
+      with:
+        cloud-id: '${{ secrets.CLOUD_ID }}'
+        client-id: '${{ secrets.CLIENT_ID }}'
+        client-secret: '${{ secrets.CLIENT_SECRET }}'
+        pipeline-id: '${{ github.repository }} ${{ github.workflow }}'
+        build-number: ${{ github.run_number }}
+        build-display-name: 'Workflow: ${{ github.workflow }} (#${{ github.run_number }})'
+        build-state: "${{ env.BUILD_STATE }}"
+        build-url: '${{github.event.repository.url}}/actions/runs/${{github.run_id}}'
+        update-sequence-number: '${{ github.run_id }}'
+        last-updated: '${{github.event.head_commit.timestamp}}'
+        issue-keys: "${{ steps.jira_keys.outputs.jira-keys }}"
+        commit-id: '${{ github.sha }}'
+        repo-url: '${{ github.event.repository.url }}'
+        build-ref-url: '${{ github.event.repository.url }}/actions/runs/${{ github.run_id }}'
+    - name: Confirm Jira Build Output
+      if: success()
+      run: |
+        echo "Jira Upload Build Info response: ${{ steps.push_build_info_to_jira.outputs.response }}"
+
+  deploy_to_test:
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    if: github.event_name == 'push' &&  github.ref == 'refs/heads/release/1.0.0'
+    steps:
+      - name: Deploy to Test
+        run: |
+          echo "Deploying to Test..."
+          echo "github.event_name: ${{github.event_name}}"
+          echo "github.ref: ${{github.ref}}"
+          echo "::set-env name=DEPLOY_STATE::successful"
+      - name: Failed Deployment
+        if: failure()
+        run: echo "::set-env name=DEPLOY_STATE::failed"
+      - name: Parse Jira Keys from All Commits
+        id: jira_keys
+        if: always()
+        uses: HighwayThree/jira-extract-issue-keys@master
+        with:
+          is-pull-request: ${{ github.event_name == 'pull_request' }}
+          parse-all-commits: ${{ github.event_name == 'push' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Confirm Deploy State and Jira Key Values
+        if: always()
+        run: |
+          echo "DEPLOY_STATE: ${{env.DEPLOY_STATE}}"
+          echo "Jira Keys: ${{steps.jira_keys.outputs.jira-keys}}"
+      - name: Push Deployment Info to Jira
+        if: steps.jira_keys.outputs.jira-keys != ''
+        id: push_deployment_info_to_jira
+        uses: HighwayThree/jira-upload-deployment-info@master
+        with:
+          cloud-id: '${{ secrets.CLOUD_ID }}'
+          client-id: '${{ secrets.CLIENT_ID }}'
+          client-secret: '${{ secrets.CLIENT_SECRET }}'
+          deployment-sequence-number: '${{ github.run_id }}'
+          update-sequence-number: '${{ github.run_id }}'
+          issue-keys: "${{ steps.jira_keys.outputs.jira-keys }}"
+          display-name: "Deployment number asdf"
+          url: "${{github.event.repository.url}}/actions/runs/${{github.run_id}}"
+          description: "Test Deployment"
+          last-updated: '${{github.event.head_commit.timestamp}}'
+          label: 'Test Deployment Label'
+          state: '${{env.DEPLOY_STATE}}'
+          pipeline-id: '${{ github.repository }} ${{ github.workflow }}'
+          pipeline-display-name: 'Workflow: ${{ github.workflow }} (#${{ github.run_number }})'
+          pipeline-url: '${{github.event.repository.url}}/actions/runs/${{github.run_id}}'
+          environment-id: 'Test'
+          environment-display-name: 'Test'
+          environment-type: 'testing'
+      - name: Confirm Jira Deploy Output
+        if: success()
+        run: |
+          echo "Jira Upload Deploy Info response: ${{steps.push_deployment_info_to_jira.outputs.response}}"
+
+  deploy_to_prod:
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    if: github.event_name == 'push' &&  github.ref == 'refs/heads/master'
+    steps:
+      - name: Deploy to Prod
+        run: |
+          echo "github.event_name: ${{github.event_name}}"
+          echo "github.ref: ${{github.ref}}"
+          echo "::set-env name=DEPLOY_STATE::successful"
+          echo "Deploying to Prod..."
+      - name: Failed Deployment
+        if: failure()
+        run: echo "::set-env name=DEPLOY_STATE::failed"
+      - name: Parse Jira Keys from All Commits
+        id: jira_keys
+        if: always()
+        uses: HighwayThree/jira-extract-issue-keys@master
+        with:
+          is-pull-request: ${{ github.event_name == 'pull_request' }}
+          parse-all-commits: ${{ github.event_name == 'push' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Confirm Deploy State and Jira Key Values
+        if: always()
+        run: |
+          echo "DEPLOY_STATE: ${{env.DEPLOY_STATE}}"
+          echo "Jira Keys: ${{steps.jira_keys.outputs.jira-keys}}"
+      - name: Push Deployment Info to Jira
+        if: steps.jira_keys.outputs.jira-keys != ''
+        id: push_deployment_info_to_jira
+        uses: HighwayThree/jira-upload-deployment-info@master
+        with:
+          cloud-id: '${{ secrets.CLOUD_ID }}'
+          client-id: '${{ secrets.CLIENT_ID }}'
+          client-secret: '${{ secrets.CLIENT_SECRET }}'
+          deployment-sequence-number: '${{ github.run_id }}'
+          update-sequence-number: '${{ github.run_id }}'
+          issue-keys: "${{ steps.jira_keys.outputs.jira-keys }}"
+          display-name: "Deployment number asdf"
+          url: "${{github.event.repository.url}}/actions/runs/${{github.run_id}}"
+          description: "Prod Deployment"
+          last-updated: '${{github.event.head_commit.timestamp}}'
+          label: 'Prod Deployment Label'
+          state: '${{env.DEPLOY_STATE}}'
+          pipeline-id: '${{ github.repository }} ${{ github.workflow }}'
+          pipeline-display-name: 'Workflow: ${{ github.workflow }} (#${{ github.run_number }})'
+          pipeline-url: '${{github.event.repository.url}}/actions/runs/${{github.run_id}}'
+          environment-id: 'Prod'
+          environment-display-name: 'Prod'
+          environment-type: 'production'

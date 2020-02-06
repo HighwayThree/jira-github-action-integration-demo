@@ -1,0 +1,14 @@
+# Intellij
+.idea/
+*.iml
+*.iws
+
+# Mac
+.DS_Store
+
+# dependencies
+/node_modules
+/server/node_modules
+
+# compiled output
+/dist
