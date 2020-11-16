@@ -22,10 +22,10 @@ jobs:
       shell: bash
       run: |
         echo "Build and Test as asdfsdf asdf asdfs sadfsd asdfsdff bbccccdddd asdfd asdf yyyyy asd asdf   asdfdf "
-        echo "::set-env name=BUILD_STATE::successful"
+        echo "BUILD_STATE=successful" >> $GITHUB_ENV
     - name: Failed Build
       if: failure()
-      run: echo "::set-env name=BUILD_STATE::failed"
+      run: echo "BUILD_STATE=failed" >> $GITHUB_ENV
     - name: Parse Jira Keys from Commit
       id: jira_keys
       if: always()
@@ -69,10 +69,10 @@ jobs:
           echo "Deploying to Test..."
           echo "github.event_name: ${{github.event_name}}"
           echo "github.ref: ${{github.ref}}"
-          echo "::set-env name=DEPLOY_STATE::successful"
+          echo "DEPLOY_STATE=successful"  >> $GITHUB_ENV
       - name: Failed Deployment
         if: failure()
-        run: echo "::set-env name=DEPLOY_STATE::failed"
+        run: echo "DEPLOY_STATE=failed" >> $GITHUB_ENV
       - name: Parse Jira Keys from All Commits
         id: jira_keys
         if: always()
@@ -124,11 +124,11 @@ jobs:
         run: |
           echo "github.event_name: ${{github.event_name}}"
           echo "github.ref: ${{github.ref}}"
-          echo "::set-env name=DEPLOY_STATE::successful"
+          echo "DEPLOY_STATE=successful" >> $GITHUB_ENV
           echo "Deploying to Prod..."
       - name: Failed Deployment
         if: failure()
-        run: echo "::set-env name=DEPLOY_STATE::failed"
+        run: echo "DEPLOY_STATE=failed" >> $GITHUB_ENV
       - name: Parse Jira Keys from All Commits
         id: jira_keys
         if: always()
